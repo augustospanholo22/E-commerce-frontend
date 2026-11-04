@@ -5,6 +5,7 @@ import type { Produto } from "@/lib/types";
 import { ProductArt } from "./product-art";
 import { QuickAdd } from "./add-to-cart";
 import { cn } from "@/lib/cn";
+import { productCover } from "@/lib/product-images";
 
 type Props = { produto: Produto; lojaNome?: string; className?: string; priority?: boolean };
 
@@ -24,6 +25,7 @@ export function ProductCard({ produto, lojaNome, className }: Props) {
           <ProductArt
             id={produto.id}
             nome={produto.nome}
+            src={productCover(produto)}
             className={cn("transition-transform duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.04]", esgotado && "opacity-50 grayscale")}
           />
         </Link>

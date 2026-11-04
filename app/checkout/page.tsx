@@ -65,12 +65,10 @@ function Checkout() {
           let quantidade = item.quantidade;
           if (quantidade > p.estoque) { quantidade = p.estoque; msgs.push(`A quantidade de “${p.nome}” foi ajustada para ${p.estoque} (estoque atual).`); }
           if (p.preco !== item.preco) msgs.push(`O preço de “${p.nome}” mudou para ${formatPrice(p.preco)}.`);
-          updated.push({ ...item, nome: p.nome, preco: p.preco, estoque: p.estoque, quantidade });
+          updated.push({ ...item, nome: p.nome, preco: p.preco, estoque: p.estoque, imagemUrl: p.imagemUrl, quantidade });
         }
-        if (msgs.length) {
-          setNotices(msgs);
-          cart.replaceAll(updated);
-        }
+        if (msgs.length) setNotices(msgs);
+        cart.replaceAll(updated); // também atualiza nome/imagem do retrato salvo
       } catch (e) {
         if (!cancel) setLoadError(errorMessage(e));
       } finally {

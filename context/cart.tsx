@@ -16,6 +16,8 @@ export type CartItem = {
   estoque: number;
   lojaId: number;
   quantidade: number;
+  /** Caminho da imagem principal no momento em que foi adicionado */
+  imagemUrl?: string | null;
 };
 
 type CartState = {
@@ -99,13 +101,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existing) {
         return prev.map((i) =>
           i.produtoId === p.id
-            ? { ...i, preco: p.preco, estoque: p.estoque, quantidade: Math.min(i.quantidade + qtd, p.estoque) }
+            ? { ...i, preco: p.preco, estoque: p.estoque, imagemUrl: p.imagemUrl, quantidade: Math.min(i.quantidade + qtd, p.estoque) }
             : i,
         );
       }
       return [
         ...prev,
-        { produtoId: p.id, nome: p.nome, preco: p.preco, estoque: p.estoque, lojaId: p.lojaId, quantidade: Math.min(qtd, p.estoque) },
+        { produtoId: p.id, nome: p.nome, preco: p.preco, estoque: p.estoque, lojaId: p.lojaId, imagemUrl: p.imagemUrl, quantidade: Math.min(qtd, p.estoque) },
       ];
     });
   }, [setItems]);

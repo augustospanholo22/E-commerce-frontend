@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 
-type Props = { open: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode };
+type Props = { open: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode; size?: "md" | "lg" };
 
-export function Modal({ open, onClose, title, description, children }: Props) {
+export function Modal({ open, onClose, title, description, children, size = "md" }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -21,7 +21,7 @@ export function Modal({ open, onClose, title, description, children }: Props) {
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 animate-fade-in bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative max-h-[92vh] w-full animate-fade-up overflow-y-auto rounded-t-3xl bg-canvas p-6 sm:max-w-lg sm:rounded-3xl sm:p-8">
+      <div className={`relative max-h-[92vh] w-full animate-fade-up overflow-y-auto rounded-t-3xl bg-canvas p-6 ${size === "lg" ? "sm:max-w-2xl" : "sm:max-w-lg"} sm:rounded-3xl sm:p-8`}>
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl text-fg">{title}</h2>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { getLojas, getProdutos } from "@/lib/server-api";
 import { formatPrice } from "@/lib/format";
+import { productCover } from "@/lib/product-images";
 
 /**
  * "Palco" do banner principal: em vez de uma ilustração, mostra um produto REAL
@@ -35,6 +36,7 @@ export async function HeroStage() {
         <ProductArt
           id={destaque.id}
           nome={destaque.nome}
+          src={productCover(destaque)}
           priority
           sizes="(min-width: 1024px) 45vw, 100vw"
           className="aspect-[4/3] transition-transform duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.02]"

@@ -16,6 +16,7 @@ import { Modal } from "@/components/ui/modal";
 import { ProductArt } from "@/components/product/product-art";
 import { StatusBadge } from "@/components/account/status-badge";
 import { cn } from "@/lib/cn";
+import { imageSrc } from "@/lib/product-images";
 
 export default function PedidoDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -121,7 +122,7 @@ export default function PedidoDetalhePage() {
               {pedido.itens.map((i) => (
                 <li key={i.id} className="flex items-center gap-4 py-4">
                   <Link href={`/produtos/${i.produto.id}`} className="w-16 shrink-0 overflow-hidden rounded-lg">
-                    <ProductArt id={i.produto.id} nome={i.produto.nome} label={false} className="aspect-[4/5]" />
+                    <ProductArt id={i.produto.id} nome={i.produto.nome} src={imageSrc(i.produto.imagemUrl)} label={false} className="aspect-[4/5]" />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <Link href={`/produtos/${i.produto.id}`} className="truncate font-medium hover:underline">{i.produto.nome}</Link>

@@ -8,6 +8,7 @@ import { ProductArt } from "@/components/product/product-art";
 import { QuantityStepper } from "@/components/ui/quantity";
 import { LinkButton } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
+import { imageSrc } from "@/lib/product-images";
 
 export function CartDrawer() {
   const { drawerOpen, closeDrawer, items, subtotal, count, setQuantity, remove } = useCart();
@@ -56,7 +57,7 @@ export function CartDrawer() {
               {items.map((item) => (
                 <li key={item.produtoId} className="flex gap-4 py-5">
                   <Link href={`/produtos/${item.produtoId}`} onClick={closeDrawer} className="w-20 shrink-0 overflow-hidden rounded-xl">
-                    <ProductArt id={item.produtoId} nome={item.nome} label={false} className="aspect-[4/5]" />
+                    <ProductArt id={item.produtoId} nome={item.nome} src={imageSrc(item.imagemUrl)} label={false} className="aspect-[4/5]" />
                   </Link>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex justify-between gap-3">

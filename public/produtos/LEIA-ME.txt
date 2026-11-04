@@ -1,2 +1,2 @@
-Coloque aqui as fotos dos produtos (ex.: caderno.png) e registre-as em lib/product-images.ts usando o id do produto.
-Dica: PNG com fundo transparente, ~1200px, produto centralizado — combina com o fundo escuro da Vitrine.
+As fotos dos produtos agora são enviadas pelo Painel do vendedor (Novo produto / Editar → "Imagens do produto")
+e ficam armazenadas no backend, em trabalho-backend/uploads/produtos/. Esta pasta não é mais usada.

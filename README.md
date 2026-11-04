@@ -89,13 +89,18 @@ Tema escuro, minimalista e tecnológico, com destaque em verde neon.
 
 ## Fotos dos produtos
 
-O backend não tem campo de imagem. As fotos ficam em `public/produtos/` e são ligadas ao **id real** do produto em `lib/product-images.ts`:
+O vendedor envia as fotos no **Painel do vendedor → Novo produto / Editar** (seção "Imagens do produto"):
 
-```ts
-export const PRODUCT_IMAGES: Record<number, string[]> = {
-  1: ["/produtos/caderno.png", "/produtos/caderno-verso.png"], // 2+ imagens = galeria com miniaturas
-};
-```
+- até **8 imagens** por produto, **JPG, PNG ou WebP**, até **5 MB** cada;
+- prévia antes de salvar, nome e tamanho do arquivo, remover/desfazer e escolha da **imagem principal**;
+- validação no navegador (formato real lido dos bytes do arquivo, tamanho e quantidade) **e** no backend.
 
-Sem foto cadastrada, o produto mostra um placeholder neutro — nunca uma imagem quebrada. Capas de loja funcionam igual (`STORE_IMAGES`, pasta `public/lojas/`).
-"# E-commerce-frontend" 
+Ao salvar, o formulário: grava os dados (JSON) → remove as imagens marcadas → envia as novas em
+`multipart/form-data` (`POST /produtos/:id/imagens`, campo `imagens`) → define a principal.
+
+O backend guarda o arquivo em `trabalho-backend/uploads/produtos/` e salva no banco só o caminho
+(`/uploads/produtos/<uuid>.jpg`). O frontend exibe pelo proxy: `/api/uploads/produtos/<uuid>.jpg`
+(`lib/product-images.ts`). Produtos sem foto usam a capa neutra de `components/product/product-art.tsx`,
+que também é usada se um arquivo falhar ao carregar.
+
+Capas de **loja** continuam opcionais e locais (`STORE_IMAGES` em `lib/product-images.ts`, pasta `public/lojas/`).

@@ -10,6 +10,7 @@ import { QuantityStepper } from "@/components/ui/quantity";
 import { StatePanel, Skeleton } from "@/components/ui/states";
 import { ProductArt } from "@/components/product/product-art";
 import { formatPrice, pluralize } from "@/lib/format";
+import { imageSrc } from "@/lib/product-images";
 
 export default function CarrinhoPage() {
   const { items, hydrated, subtotal, count, setQuantity, remove, clear } = useCart();
@@ -40,7 +41,7 @@ export default function CarrinhoPage() {
                   <li key={item.produtoId} className="grid grid-cols-[5.5rem_1fr] gap-4 py-6 sm:grid-cols-[1fr_9rem_7rem] sm:items-center sm:gap-6">
                     <div className="contents sm:flex sm:items-center sm:gap-5">
                       <Link href={`/produtos/${item.produtoId}`} className="w-[5.5rem] shrink-0 overflow-hidden rounded-xl sm:w-24">
-                        <ProductArt id={item.produtoId} nome={item.nome} label={false} className="aspect-[4/5]" />
+                        <ProductArt id={item.produtoId} nome={item.nome} src={imageSrc(item.imagemUrl)} label={false} className="aspect-[4/5]" />
                       </Link>
                       <div className="min-w-0">
                         <Link href={`/produtos/${item.produtoId}`} className="font-medium hover:underline">

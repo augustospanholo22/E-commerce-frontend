@@ -15,11 +15,13 @@ import { Modal } from "@/components/ui/modal";
 import { Alert, Skeleton, StatePanel } from "@/components/ui/states";
 import { StoreArt } from "@/components/store/store-art";
 import { ProductArt } from "@/components/product/product-art";
-import { api } from "@/lib/api";
+import { api, removeProdutoImagem, setImagemPrincipal, uploadProdutoImagens } from "@/lib/api";
+import { effectivePrincipal, ImageManager, initialImagesState, type ImagesState } from "@/components/product/image-manager";
 import { ApiError, errorMessage } from "@/lib/errors";
 import { formatPrice, stockInfo } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { ItemPedido, Loja, LojaComProdutos, Produto } from "@/lib/types";
+import { productCover } from "@/lib/product-images";
 
 export default function PainelPage() {
   return (
@@ -251,7 +253,7 @@ function Painel() {
                         return (
                           <li key={p.id} className="flex items-center gap-4 py-4">
                             <div className="w-14 shrink-0 overflow-hidden rounded-lg">
-                              <ProductArt id={p.id} nome={p.nome} label={false} className="aspect-[4/5]" />
+                              <ProductArt id={p.id} nome={p.nome} src={productCover(p)} label={false} className="aspect-square" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <Link href={`/produtos/${p.id}`} className="truncate font-medium hover:underline">{p.nome}</Link>
@@ -259,6 +261,7 @@ function Painel() {
                                 <span className="tabular text-sm text-fg-soft">{formatPrice(p.preco)}</span>
                                 <Badge tone={st.tone}>{st.label}</Badge>
                                 {sold > 0 && <span className="text-xs text-muted">{sold} vendidas</span>}
+                                {(p.imagens?.length ?? 0) > 0 && <span className="text-xs text-subtle">{p.imagens!.length} {p.imagens!.length === 1 ? "foto" : "fotos"}</span>}
                               </div>
                             </div>
                             <div className="flex shrink-0 gap-1">
@@ -394,7 +397,13 @@ type ProdutoModalProps = { state: ProdutoForm; lojaId: number; onClose: () => vo
 function ProdutoModal(props: ProdutoModalProps) {
   const { state, onClose } = props;
   return (
-    <Modal open={state.open} onClose={onClose} title={state.editing ? "Editar produto" : "Novo produto"} description="A capa do produto é gerada automaticamente a partir do nome.">
+    <Modal
+      open={state.open}
+      onClose={onClose}
+      size="lg"
+      title={state.editing ? "Editar produto" : "Novo produto"}
+      description="Dados, preço, estoque e fotos. Sem fotos, o produto usa uma capa neutra."
+    >
       <ProdutoFormBody {...props} />
     </Modal>
   );
@@ -408,8 +417,12 @@ function ProdutoFormBody({ state, lojaId, onClose, onSaved }: ProdutoModalProps)
     preco: p ? p.preco.toFixed(2).replace(".", ",") : "",
     estoque: p ? String(p.estoque) : "",
   });
+  const [images, setImages] = useState<ImagesState>(() => initialImagesState(p?.imagens ?? [], p?.imagemUrl ?? null));
   const [erro, setErro] = useState("");
   const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState("");
+  // Produto já gravado nesta sessão do formulário (evita duplicar ao "tentar novamente")
+  const [savedProduto, setSavedProduto] = useState<Produto | null>(p);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm({ ...form, [k]: e.target.value });
 
@@ -423,16 +436,64 @@ function ProdutoFormBody({ state, lojaId, onClose, onSaved }: ProdutoModalProps)
     if (!Number.isInteger(estoque) || estoque < 0) return setErro("O estoque deve ser um número inteiro (0 ou mais).");
     setSaving(true);
     setErro("");
+
+    let produto = savedProduto;
+    let s = images; // cópia local do estado das imagens, atualizada a cada etapa concluída
+    const commit = (next: ImagesState) => {
+      s = next;
+      setImages(next);
+    };
+
     try {
+      // 1) Dados do produto (JSON) — POST ou PUT
+      setStep("Salvando dados…");
       const body = { nome: form.nome.trim(), descricao: form.descricao.trim(), preco: Math.round(preco * 100) / 100, estoque, lojaId };
-      const saved = state.editing
-        ? await api<Produto>(`/produtos/${state.editing.id}`, { method: "PUT", body, auth: true })
+      produto = produto
+        ? await api<Produto>(`/produtos/${produto.id}`, { method: "PUT", body, auth: true })
         : await api<Produto>("/produtos", { method: "POST", body, auth: true });
-      onSaved(saved);
+      setSavedProduto(produto);
+      const pid = produto.id;
+
+      // 2) Remoções marcadas
+      for (const id of s.removed) {
+        setStep("Removendo imagens…");
+        produto = await removeProdutoImagem(pid, id);
+        commit({ ...s, existing: s.existing.filter((i) => i.id !== id), removed: s.removed.filter((r) => r !== id) });
+      }
+
+      // 3) Upload das novas imagens (multipart/form-data)
+      if (s.added.length > 0) {
+        setStep(s.added.length === 1 ? "Enviando imagem…" : `Enviando ${s.added.length} imagens…`);
+        const antes = new Set(s.existing.map((i) => i.id));
+        produto = await uploadProdutoImagens(pid, s.added.map((a) => a.file));
+        // As novas voltam na mesma ordem em que foram enviadas
+        const criadas = (produto.imagens ?? []).filter((i) => !antes.has(i.id)).sort((a, b) => a.ordem - b.ordem);
+        let principal = s.principal;
+        if (principal?.kind === "new") {
+          const idx = s.added.findIndex((a) => a.key === (principal as { key: string }).key);
+          principal = criadas[idx] ? { kind: "existing", id: criadas[idx].id } : null;
+        }
+        s.added.forEach((a) => URL.revokeObjectURL(a.preview));
+        commit({ existing: produto.imagens ?? [], removed: [], added: [], principal });
+      }
+
+      // 4) Imagem principal escolhida
+      const principal = effectivePrincipal(s);
+      if (principal?.kind === "existing") {
+        const img = s.existing.find((i) => i.id === principal.id);
+        if (img && img.url !== produto.imagemUrl) {
+          setStep("Definindo imagem principal…");
+          produto = await setImagemPrincipal(pid, img.id);
+        }
+      }
+
+      onSaved(produto);
     } catch (err) {
-      setErro(errorMessage(err));
+      const msg = errorMessage(err);
+      setErro(produto ? `Os dados do produto foram salvos, mas houve um problema com as imagens: ${msg}` : msg);
     } finally {
       setSaving(false);
+      setStep("");
     }
   }
 
@@ -454,9 +515,17 @@ function ProdutoFormBody({ state, lojaId, onClose, onSaved }: ProdutoModalProps)
             <Input id="p-estoque" type="number" min={0} step={1} inputMode="numeric" value={form.estoque} onChange={set("estoque")} placeholder="10" />
           </Field>
         </div>
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={saving}>{state.editing ? "Salvar" : "Publicar produto"}</Button>
+
+        <div className="border-t border-line pt-5">
+          <ImageManager value={images} onChange={setImages} disabled={saving} />
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-end">
+          {step && <p className="text-xs text-muted sm:mr-auto" aria-live="polite">{step}</p>}
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button type="submit" loading={saving}>
+            {erro && savedProduto ? "Tentar novamente" : state.editing ? "Salvar" : "Publicar produto"}
+          </Button>
         </div>
       </form>
     </>

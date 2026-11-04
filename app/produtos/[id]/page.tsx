@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { DataError } from "@/components/ui/data-error";
 import { ProductGallery } from "@/components/product/gallery";
-import { getProductImages } from "@/lib/product-images";
+import { productImageUrls } from "@/lib/product-images";
 import { PurchasePanel } from "@/components/product/add-to-cart";
 import { ProductCard, ProductGridSkeleton } from "@/components/product/product-card";
 import { StoreArt } from "@/components/store/store-art";
@@ -58,7 +58,7 @@ async function ProductDetail({ params }: { params: PageProps<"/produtos/[id]">["
         <div className="mt-8 grid gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-7">
             <div className="animate-fade-in lg:sticky lg:top-28">
-              <ProductGallery id={produto.id} nome={produto.nome} count={getProductImages(produto.id).length} />
+              <ProductGallery id={produto.id} nome={produto.nome} urls={productImageUrls(produto)} />
             </div>
           </div>
 

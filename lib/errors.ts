@@ -23,6 +23,9 @@ const TRADUCOES: [RegExp, string][] = [
   [/(\w+) must be a number/i, "Informe um número válido."],
   [/(\w+) must be an integer/i, "Informe um número inteiro."],
   [/Unique constraint failed/i, "Este registro já existe."],
+  [/File too large/i, "Cada imagem pode ter no máximo 5 MB."],
+  [/Too many files/i, "Envie no máximo 8 imagens por vez."],
+  [/Unexpected field/i, "Campo de arquivo inválido."],
 ];
 
 export function friendlyMessage(msg: string): string {

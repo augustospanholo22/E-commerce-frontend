@@ -25,6 +25,16 @@ export type Loja = {
   usuarioId: number;
 };
 
+/** Imagem da galeria (tabela ProdutoImagem). `url` é um caminho público do backend, ex.: /uploads/produtos/<uuid>.jpg */
+export type ProdutoImagem = {
+  id: number;
+  produtoId: number;
+  url: string;
+  nomeOriginal: string | null;
+  ordem: number;
+  createdAt: string;
+};
+
 export type Produto = {
   id: number;
   nome: string;
@@ -32,6 +42,10 @@ export type Produto = {
   preco: number;
   estoque: number;
   lojaId: number;
+  /** Imagem principal (null = produto sem imagem) */
+  imagemUrl: string | null;
+  /** Galeria — vem em GET /produtos, GET /produtos/:id e GET /lojas/:id */
+  imagens?: ProdutoImagem[];
 };
 
 /** GET /lojas/:id inclui os produtos da loja */

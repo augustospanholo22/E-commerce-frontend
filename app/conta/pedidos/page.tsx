@@ -12,6 +12,7 @@ import { LinkButton, Button } from "@/components/ui/button";
 import { Skeleton, StatePanel } from "@/components/ui/states";
 import { ProductArt } from "@/components/product/product-art";
 import { StatusBadge } from "@/components/account/status-badge";
+import { imageSrc } from "@/lib/product-images";
 
 export default function PedidosPage() {
   const { user } = useAuth();
@@ -75,7 +76,7 @@ export default function PedidosPage() {
                 <div className="flex -space-x-3">
                   {p.itens.slice(0, 3).map((i) => (
                     <div key={i.id} className="w-14 overflow-hidden rounded-lg ring-4 ring-surface">
-                      <ProductArt id={i.produto.id} nome={i.produto.nome} label={false} className="aspect-[4/5]" />
+                      <ProductArt id={i.produto.id} nome={i.produto.nome} src={imageSrc(i.produto.imagemUrl)} label={false} className="aspect-[4/5]" />
                     </div>
                   ))}
                   {p.itens.length === 0 && (
