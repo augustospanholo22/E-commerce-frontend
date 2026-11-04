@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vitrine — frontend do e-commerce
 
-## Getting Started
+Frontend em **Next.js 16** (App Router, Cache Components) + **Tailwind CSS v4**, integrado ao backend NestJS do repositório `trabalho-backend`.
 
-First, run the development server:
+## Como rodar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1) backend (pasta trabalho-backend) — porta 3000
+npm run start:dev
+
+# 2) frontend (esta pasta) — porta 3001
+npm install          # instala lucide-react e as fontes (Fraunces/Geist)
+npm run dev          # http://localhost:3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A URL da API fica em `.env.local` (modelo em `.env.example`):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+API_URL=http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Como o frontend fala com o backend
 
-## Learn More
+O backend **não habilita CORS**, então o navegador nunca chama a porta 3000 diretamente:
 
-To learn more about Next.js, take a look at the following resources:
+| Quem chama | Como | Arquivo |
+|---|---|---|
+| Server Components (páginas públicas) | `fetch(API_URL + "/produtos")` direto no Node | `lib/server-api.ts` |
+| Navegador (login, checkout, painel…) | `fetch("/api/produtos")` → o `rewrites` do Next repassa para `API_URL` | `lib/api.ts`, `next.config.ts` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Endpoints usados (todos reais)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Tela | Endpoints |
+|---|---|
+| Home, catálogo, lojas | `GET /produtos`, `GET /lojas`, `GET /lojas/:id` |
+| Produto | `GET /produtos/:id`, `GET /lojas/:id` |
+| Cadastro / login | `POST /users`, `POST /auth/login` |
+| Sessão (nome do usuário) | `GET /users/:id` — o id vem do campo `sub` do JWT, pois não existe `/me` |
+| Perfil | `PUT /users/:id`, `GET /profiles`, `POST /profiles`, `PUT /profiles/:id` |
+| Checkout | `GET /produtos` (confere preço/estoque), `POST /pedidos`, `POST /itens-pedido` |
+| Pedidos | `GET /pedidos` (filtrado pelo usuário), `GET /pedidos/:id`, `PUT /pedidos/:id` (cancelar) |
+| Painel do vendedor | `POST/PUT/DELETE /lojas`, `POST/PUT/DELETE /produtos`, `GET /itens-pedido` (vendas) |
 
-## Deploy on Vercel
+### Autenticação JWT
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- O token de `POST /auth/login` é salvo no `localStorage` e enviado como `Authorization: Bearer <token>` nas rotas protegidas.
+- O token expira em **1h** (configuração do backend): o frontend faz logout automático na expiração ou ao receber um `401`.
+- `context/auth.tsx` lê o token com `useSyncExternalStore` (fica sincronizado entre abas).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Limitações do backend (tratadas no frontend, sem alterar o backend)
+
+1. **Sem CORS** → proxy via `rewrites`.
+2. **Sem `/me`** → id do usuário lido do JWT.
+3. **`GET /pedidos` e `GET /profiles` retornam dados de todos os usuários** → o frontend filtra pelo usuário logado. ⚠️ Isso é uma falha de segurança que deve ser corrigida no backend (filtrar pelo `request.user.sub`).
+4. **Checkout não é transacional e não baixa estoque** → o pedido é criado e depois cada item; o status fica `PENDENTE`. Nenhum pagamento é simulado.
+5. **Produto não tem imagem nem categoria** → cada produto recebe uma capa ilustrada gerada em SVG a partir do id e do nome (`components/product/product-art.tsx`); as lojas funcionam como "coleções".
+6. **E-mail duplicado e exclusões com chave estrangeira retornam 500** → mensagens amigáveis no cadastro e no painel.
+
+## Estrutura
+
+```
+app/                  rotas (/, /produtos, /produtos/[id], /lojas, /lojas/[id],
+                      /login, /cadastro, /carrinho, /checkout, /conta, /conta/pedidos,
+                      /conta/pedidos/[id], /painel)
+components/ui         botões, campos, badges, modal, estados (vazio/erro/skeleton)
+components/layout     header, footer, sacola lateral, providers
+components/product    card, arte gerada, catálogo com filtros, painel de compra
+components/store      card e arte das lojas
+components/home       hero e seções da página inicial
+context/              auth (JWT), cart (localStorage), toast
+lib/                  clientes HTTP, tipos (espelham os DTOs), formatação, erros
+```
+
+## Identidade visual
+
+Tema escuro, minimalista e tecnológico, com destaque em verde neon.
+
+| Token (Tailwind) | Cor | Uso |
+|---|---|---|
+| `canvas` | `#171717` | fundo principal |
+| `surface` | `#232323` | cards e superfícies |
+| `muted` | `#B9B9B9` | textos secundários |
+| `fg` | `#FFFFFF` | textos de alto contraste |
+| `brand` / `on-brand` | `#A2EC34` / `#171717` | botões principais, estados ativos, indicadores |
+
+- Toda a paleta está em `app/globals.css` (bloco `@theme`). Os componentes usam só os nomes dos tokens (`bg-surface`, `text-muted`, `bg-brand`…).
+- **Tipografia:** Syne (títulos) + Geist (interface), auto-hospedadas via Fontsource.
+- O neon fica restrito a ações e indicadores; seleções usam o tom suave `brand-soft`.
+
+## Fotos dos produtos
+
+O backend não tem campo de imagem. As fotos ficam em `public/produtos/` e são ligadas ao **id real** do produto em `lib/product-images.ts`:
+
+```ts
+export const PRODUCT_IMAGES: Record<number, string[]> = {
+  1: ["/produtos/caderno.png", "/produtos/caderno-verso.png"], // 2+ imagens = galeria com miniaturas
+};
+```
+
+Sem foto cadastrada, o produto mostra um placeholder neutro — nunca uma imagem quebrada. Capas de loja funcionam igual (`STORE_IMAGES`, pasta `public/lojas/`).
+"# E-commerce-frontend" 

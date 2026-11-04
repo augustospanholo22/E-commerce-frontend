@@ -1,0 +1,2 @@
+Coloque aqui as fotos dos produtos (ex.: caderno.png) e registre-as em lib/product-images.ts usando o id do produto.
+Dica: PNG com fundo transparente, ~1200px, produto centralizado — combina com o fundo escuro da Vitrine.

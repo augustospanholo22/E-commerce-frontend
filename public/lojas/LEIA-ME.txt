@@ -1,0 +1,2 @@
+Coloque aqui as fotos das lojas (ex.: loja-teste.jpg) e registre-as em lib/product-images.ts (STORE_IMAGES) usando o id da loja.
+Dica: imagem horizontal (3:2), ~1200px — combina com o fundo escuro da Vitrine.

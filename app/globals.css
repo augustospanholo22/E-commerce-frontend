@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ------------------------------------------------------------------
+   Vitrine — tokens de design (tema escuro, destaque neon)
+   Toda a paleta vive aqui. Os componentes usam apenas estes nomes
+   (bg-canvas, bg-surface, text-fg, text-muted, bg-brand, text-on-brand…),
+   então trocar a identidade = trocar estes valores.
+------------------------------------------------------------------- */
+@theme {
+  /* Base */
+  --color-canvas: #171717;        /* fundo principal */
+  --color-canvas-deep: #111111;   /* rodapé / áreas mais profundas */
+  --color-surface: #232323;       /* cards e superfícies */
+  --color-surface-2: #2b2b2b;     /* hover, campos desabilitados, skeleton */
+  --color-surface-3: #333333;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Texto */
+  --color-fg: #ffffff;            /* alto contraste */
+  --color-fg-soft: #e4e4e4;
+  --color-muted: #b9b9b9;         /* secundário (≈8:1 sobre #232323) */
+  --color-subtle: #8c8c8c;        /* discreto (≈4.7:1 sobre #232323) */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Linhas */
+  --color-line: #2f2f2f;
+  --color-line-strong: #3d3d3d;
+
+  /* Destaque neon — usar só em ações, estados ativos e indicadores */
+  --color-brand: #a2ec34;
+  --color-brand-hover: #b6f25e;
+  --color-brand-soft: rgb(162 236 52 / 0.12);
+  --color-on-brand: #171717;      /* texto sobre o neon (≈12:1) */
+
+  /* Feedback */
+  --color-danger: #ff6b57;
+  --color-danger-soft: rgb(255 107 87 / 0.12);
+
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne Variable", "Geist Variable", ui-sans-serif, sans-serif;
+
+  --radius-card: 1rem;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-fade-up: fade-up 0.6s var(--ease-out-soft) both;
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-slide-in: slide-in 0.45s var(--ease-out-soft) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--color-brand);
+    color: var(--color-on-brand);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input[type="number"]::-webkit-inner-spin-button {
+    opacity: 0.4;
+  }
+}
+
+@layer components {
+  /* Títulos: Syne, geométrica e larga, como na referência */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--color-surface) 0%, var(--color-surface-2) 50%, var(--color-surface) 100%);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+    border-radius: 0.75rem;
+  }
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.35s var(--ease-out-soft);
+  }
+  .link-underline:hover {
+    background-size: 100% 1px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
