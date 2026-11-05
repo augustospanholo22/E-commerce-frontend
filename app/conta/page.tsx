@@ -9,7 +9,7 @@ import { Alert, Skeleton } from "@/components/ui/states";
 import { PasswordInput } from "@/components/auth/password-input";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
-import type { Profile, UpdateUsuarioDto, Usuario } from "@/lib/types";
+import type { Profile, UpdateProfileDto, UpdateUsuarioDto, Usuario } from "@/lib/types";
 
 export default function PerfilPage() {
   return (
@@ -43,24 +43,30 @@ function DadosPessoais() {
   const [nome, setNome] = useState(user?.nome ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [senha, setSenha] = useState("");
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [erro, setErro] = useState("");
   const [saving, setSaving] = useState(false);
 
   if (!user) return null;
   const dirty = nome !== user.nome || email !== user.email || senha.length > 0;
+  // O backend exige a senha atual para trocar e-mail ou senha
+  const precisaSenhaAtual = email.trim() !== user.email || senha.length > 0;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
     if (senha && senha.length < 6) return setErro("A nova senha precisa ter pelo menos 6 caracteres.");
+    if (precisaSenhaAtual && !senhaAtual) return setErro("Informe sua senha atual para alterar e-mail ou senha.");
     setErro("");
     setSaving(true);
     try {
       const body: UpdateUsuarioDto = { nome: nome.trim(), email: email.trim() };
       if (senha) body.senha = senha;
+      if (precisaSenhaAtual) body.senhaAtual = senhaAtual;
       await api<Usuario>(`/users/${user.id}`, { method: "PUT", body, auth: true });
       await refreshUser();
       setSenha("");
+      setSenhaAtual("");
       toast("Dados atualizados.");
     } catch (err) {
       setErro(errorMessage(err));
@@ -82,6 +88,11 @@ function DadosPessoais() {
         <Field label="Nova senha" htmlFor="senha" hint="Deixe em branco para manter a atual." className="sm:col-span-2 sm:max-w-sm">
           <PasswordInput id="senha" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" placeholder="••••••" />
         </Field>
+        {precisaSenhaAtual && (
+          <Field label="Senha atual" htmlFor="senha-atual" hint="Necessária para confirmar a troca de e-mail ou senha." className="animate-fade-in sm:col-span-2 sm:max-w-sm">
+            <PasswordInput id="senha-atual" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" required />
+          </Field>
+        )}
         <div className="sm:col-span-2">
           <Button type="submit" loading={saving} disabled={!dirty}>Salvar alterações</Button>
         </div>
@@ -90,7 +101,7 @@ function DadosPessoais() {
   );
 }
 
-/** Profile: GET /profiles (filtrado pelo usuário) + POST/PUT /profiles */
+/** Perfil do usuário logado: GET /profiles/me + PUT /profiles/me (cria ou atualiza) */
 function Endereco() {
   const { user } = useAuth();
   const toast = useToast();
@@ -103,9 +114,8 @@ function Endereco() {
 
   useEffect(() => {
     if (!user) return;
-    api<Profile[]>("/profiles")
-      .then((list) => {
-        const mine = list.find((p) => p.usuarioId === user.id) ?? null;
+    api<Profile | null>("/profiles/me", { auth: true })
+      .then((mine) => {
         setProfile(mine);
         setTelefone(mine?.telefone ?? "");
         setEndereco(mine?.endereco ?? "");
@@ -120,10 +130,8 @@ function Endereco() {
     setErro("");
     setSaving(true);
     try {
-      const body = { usuarioId: user.id, telefone: telefone.trim() || undefined, endereco: endereco.trim() || undefined };
-      const saved = profile
-        ? await api<Profile>(`/profiles/${profile.id}`, { method: "PUT", body, auth: true })
-        : await api<Profile>("/profiles", { method: "POST", body, auth: true });
+      const body: UpdateProfileDto = { telefone: telefone.trim() || undefined, endereco: endereco.trim() || undefined };
+      const saved = await api<Profile>("/profiles/me", { method: "PUT", body, auth: true });
       setProfile(saved);
       toast("Endereço salvo.");
     } catch (err) {

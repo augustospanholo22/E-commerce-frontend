@@ -40,6 +40,8 @@ export function parseNestError(status: number, body: unknown): ApiError {
     if (Array.isArray(m)) messages = m.map(String);
     else if (typeof m === "string") messages = [m];
   }
+  // Limite de tentativas (login/cadastro) — a mensagem padrão vem em inglês
+  if (status === 429) messages = ["Muitas tentativas em pouco tempo. Aguarde um minuto e tente novamente."];
   if (messages.length === 0) {
     messages = [
       status === 500

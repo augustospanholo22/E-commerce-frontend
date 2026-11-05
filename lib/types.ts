@@ -78,8 +78,12 @@ export type PedidoDetalhe = Pedido & {
 export type LoginDto = { email: string; senha: string };
 export type LoginResponse = { access_token: string };
 export type CreateUsuarioDto = { nome: string; email: string; senha: string };
-export type UpdateUsuarioDto = Partial<CreateUsuarioDto>;
-export type CreateLojaDto = { nome: string; descricao: string; usuarioId: number };
+export type UpdateUsuarioDto = Partial<CreateUsuarioDto> & {
+  /** Obrigatória para trocar e-mail ou senha */
+  senhaAtual?: string;
+};
+/** O dono da loja vem do token — o cliente não envia usuarioId */
+export type CreateLojaDto = { nome: string; descricao?: string };
 export type CreateProdutoDto = {
   nome: string;
   descricao: string;
@@ -87,15 +91,10 @@ export type CreateProdutoDto = {
   estoque: number;
   lojaId: number;
 };
-export type CreatePedidoDto = { usuarioId: number; valorTotal: number; status: string };
-export type CreateItemPedidoDto = {
-  pedidoId: number;
-  produtoId: number;
-  quantidade: number;
-  precoUnitario: number;
-};
-export type CreateProfileDto = {
-  usuarioId: number;
-  telefone?: string;
-  endereco?: string;
-};
+/**
+ * Checkout: só produtos e quantidades. Preço, total, status e comprador
+ * são definidos pelo backend (com os dados do banco).
+ */
+export type CreatePedidoDto = { itens: { produtoId: number; quantidade: number }[] };
+/** PUT /profiles/me — o perfil é sempre do usuário do token */
+export type UpdateProfileDto = { telefone?: string; endereco?: string };

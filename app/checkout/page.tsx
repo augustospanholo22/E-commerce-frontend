@@ -15,9 +15,9 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Skeleton, StatePanel } from "@/components/ui/states";
 import { SummaryLines } from "@/components/product/order-summary";
 import { api } from "@/lib/api";
-import { errorMessage } from "@/lib/errors";
+import { ApiError, errorMessage } from "@/lib/errors";
 import { formatPrice } from "@/lib/format";
-import type { ItemPedido, Pedido, Produto, Profile } from "@/lib/types";
+import type { CreatePedidoDto, Pedido, Produto, Profile } from "@/lib/types";
 
 export default function CheckoutPage() {
   return (
@@ -49,9 +49,8 @@ function Checkout() {
     let cancel = false;
     (async () => {
       try {
-        const [profiles, produtos] = await Promise.all([api<Profile[]>("/profiles"), api<Produto[]>("/produtos")]);
+        const [mine, produtos] = await Promise.all([api<Profile | null>("/profiles/me", { auth: true }), api<Produto[]>("/produtos")]);
         if (cancel) return;
-        const mine = profiles.find((p) => p.usuarioId === user.id) ?? null;
         setProfile(mine);
         setEndereco(mine?.endereco ?? "");
         setTelefone(mine?.telefone ?? "");
@@ -89,12 +88,10 @@ function Checkout() {
     setSubmitting(true);
 
     try {
-      // a) Salva endereço/telefone no perfil (POST se não existe, PUT se mudou)
-      const body = { usuarioId: user.id, endereco: endereco.trim(), telefone: telefone.trim() || undefined };
-      if (!profile) {
-        setProfile(await api<Profile>("/profiles", { method: "POST", body, auth: true }));
-      } else if (profile.endereco !== body.endereco || (profile.telefone ?? "") !== (body.telefone ?? "")) {
-        setProfile(await api<Profile>(`/profiles/${profile.id}`, { method: "PUT", body, auth: true }));
+      // a) Salva endereço/telefone no perfil do usuário logado (cria ou atualiza)
+      const body = { endereco: endereco.trim(), telefone: telefone.trim() || undefined };
+      if (!profile || profile.endereco !== body.endereco || (profile.telefone ?? "") !== (body.telefone ?? "")) {
+        setProfile(await api<Profile>("/profiles/me", { method: "PUT", body, auth: true }));
       }
     } catch (err) {
       setSubmitError(`Não foi possível salvar o endereço: ${errorMessage(err)}`);
@@ -102,41 +99,26 @@ function Checkout() {
       return;
     }
 
-    // b) Cria o pedido
+    // b) Cria o pedido. Enviamos só produtos e quantidades: o backend confere o
+    //    estoque, usa o preço do banco, calcula o total e grava tudo em uma transação.
     let pedido: Pedido;
     try {
-      pedido = await api<Pedido>("/pedidos", {
-        method: "POST",
-        auth: true,
-        body: { usuarioId: user.id, valorTotal: total, status: "PENDENTE" },
-      });
+      const body: CreatePedidoDto = { itens: cart.items.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })) };
+      pedido = await api<Pedido>("/pedidos", { method: "POST", auth: true, body });
     } catch (err) {
-      setSubmitError(errorMessage(err));
+      // 409 = estoque mudou desde que a sacola foi montada
+      setSubmitError(
+        err instanceof ApiError && err.status === 409
+          ? `${errorMessage(err)} Atualize a sacola e tente novamente.`
+          : errorMessage(err),
+      );
       setSubmitting(false);
       return;
     }
 
-    // c) Cria os itens do pedido (o backend não faz isso em uma única transação)
-    const falhas: string[] = [];
-    for (const item of cart.items) {
-      try {
-        await api<ItemPedido>("/itens-pedido", {
-          method: "POST",
-          auth: true,
-          body: { pedidoId: pedido.id, produtoId: item.produtoId, quantidade: item.quantidade, precoUnitario: item.preco },
-        });
-      } catch {
-        falhas.push(item.nome);
-      }
-    }
-
     setPlaced(true);
     cart.clear();
-    if (falhas.length) {
-      toast(`Pedido #${pedido.id} criado, mas ${falhas.length} item(ns) não foram registrados: ${falhas.join(", ")}.`, "error");
-    } else {
-      toast(`Pedido #${pedido.id} realizado com sucesso!`);
-    }
+    toast(`Pedido #${pedido.id} realizado com sucesso!`);
     router.replace(`/conta/pedidos/${pedido.id}?novo=1`);
   }
 

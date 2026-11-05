@@ -17,10 +17,10 @@ import { StoreArt } from "@/components/store/store-art";
 import { ProductArt } from "@/components/product/product-art";
 import { api, removeProdutoImagem, setImagemPrincipal, uploadProdutoImagens } from "@/lib/api";
 import { effectivePrincipal, ImageManager, initialImagesState, type ImagesState } from "@/components/product/image-manager";
-import { ApiError, errorMessage } from "@/lib/errors";
+import { errorMessage } from "@/lib/errors";
 import { formatPrice, stockInfo } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { ItemPedido, Loja, LojaComProdutos, Produto } from "@/lib/types";
+import type { CreateLojaDto, ItemPedido, Loja, LojaComProdutos, Produto } from "@/lib/types";
 import { productCover } from "@/lib/product-images";
 
 export default function PainelPage() {
@@ -52,7 +52,7 @@ function Painel() {
   // GET /lojas/:id (com produtos) + GET /itens-pedido para contar vendas
   const loadDetalhe = useCallback(async (id: number) => {
     try {
-      const [l, itens] = await Promise.all([api<LojaComProdutos>(`/lojas/${id}`), api<ItemPedido[]>("/itens-pedido")]);
+      const [l, itens] = await Promise.all([api<LojaComProdutos>(`/lojas/${id}`), api<ItemPedido[]>("/itens-pedido", { auth: true })]);
       setDetalhe(l);
       const ids = new Set(l.produtos.map((p) => p.id));
       setVendidos(itens.filter((i) => ids.has(i.produtoId)));
@@ -127,16 +127,8 @@ function Painel() {
       }
       setConfirm(null);
     } catch (e) {
-      // O banco impede excluir registros que ainda são referenciados (chave estrangeira)
-      const fk = e instanceof ApiError && e.status === 500;
-      toast(
-        fk
-          ? confirm.kind === "loja"
-            ? "Não é possível excluir uma loja que ainda tem produtos. Exclua os produtos primeiro."
-            : "Este produto já faz parte de pedidos e não pode ser excluído. Você pode zerar o estoque."
-          : errorMessage(e),
-        "error",
-      );
+      // 409 = loja com produtos ou produto que já está em pedidos (a API explica o motivo)
+      toast(errorMessage(e), "error");
     } finally {
       setDeleting(false);
     }
@@ -287,7 +279,6 @@ function Painel() {
       {user && (
         <LojaModal
           state={lojaForm}
-          usuarioId={user.id}
           onClose={() => setLojaForm({ open: false, editing: null })}
           onSaved={async (l) => {
             toast(lojaForm.editing ? "Loja atualizada." : `Loja “${l.nome}” criada!`);
@@ -335,8 +326,8 @@ function Metric({ label, value, sub, loading }: { label: string; value: string; 
   );
 }
 
-/** POST /lojas ou PUT /lojas/:id — corpo: { nome, descricao, usuarioId } */
-type LojaModalProps = { state: LojaForm; usuarioId: number; onClose: () => void; onSaved: (l: Loja) => void };
+/** POST /lojas ou PUT /lojas/:id — corpo: { nome, descricao } (o dono vem do token) */
+type LojaModalProps = { state: LojaForm; onClose: () => void; onSaved: (l: Loja) => void };
 
 function LojaModal(props: LojaModalProps) {
   const { state, onClose } = props;
@@ -348,7 +339,7 @@ function LojaModal(props: LojaModalProps) {
   );
 }
 
-function LojaFormBody({ state, usuarioId, onClose, onSaved }: LojaModalProps) {
+function LojaFormBody({ state, onClose, onSaved }: LojaModalProps) {
   const [nome, setNome] = useState(state.editing?.nome ?? "");
   const [descricao, setDescricao] = useState(state.editing?.descricao ?? "");
   const [erro, setErro] = useState("");
@@ -360,7 +351,7 @@ function LojaFormBody({ state, usuarioId, onClose, onSaved }: LojaModalProps) {
     setSaving(true);
     setErro("");
     try {
-      const body = { nome: nome.trim(), descricao: descricao.trim(), usuarioId };
+      const body: CreateLojaDto = { nome: nome.trim(), descricao: descricao.trim() };
       const saved = state.editing
         ? await api<Loja>(`/lojas/${state.editing.id}`, { method: "PUT", body, auth: true })
         : await api<Loja>("/lojas", { method: "POST", body, auth: true });

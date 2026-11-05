@@ -11,7 +11,7 @@ import { PasswordInput } from "@/components/auth/password-input";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/states";
-import { ApiError, errorMessage } from "@/lib/errors";
+import { errorMessage } from "@/lib/errors";
 import { nextPath } from "@/lib/redirect";
 import { cn } from "@/lib/cn";
 
@@ -49,8 +49,8 @@ export default function CadastroPage() {
       toast("Conta criada! Você já está conectado.");
       router.replace(nextPath("/"));
     } catch (err) {
-      // O backend não trata e-mail duplicado e responde 500 (Unique constraint)
-      setErro(err instanceof ApiError && err.status === 500 ? "Não foi possível criar a conta. Este e-mail pode já estar cadastrado." : errorMessage(err));
+      // E-mail duplicado → 409 "Este e-mail já está em uso." (mensagem da API)
+      setErro(errorMessage(err));
       setLoading(false);
     }
   }

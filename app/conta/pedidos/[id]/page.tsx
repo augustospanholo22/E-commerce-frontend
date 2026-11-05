@@ -7,9 +7,9 @@ import { ArrowLeft, Check, PartyPopper } from "lucide-react";
 import { useAuth } from "@/context/auth";
 import { useToast } from "@/context/toast";
 import { api } from "@/lib/api";
-import { errorMessage } from "@/lib/errors";
+import { ApiError, errorMessage } from "@/lib/errors";
 import { formatDate, formatPrice } from "@/lib/format";
-import type { Pedido, PedidoDetalhe, Profile } from "@/lib/types";
+import type { PedidoDetalhe, Profile } from "@/lib/types";
 import { Button, LinkButton } from "@/components/ui/button";
 import { Alert, Skeleton, StatePanel } from "@/components/ui/states";
 import { Modal } from "@/components/ui/modal";
@@ -33,13 +33,16 @@ export default function PedidoDetalhePage() {
     if (!user) return;
     (async () => {
       try {
-        const [p, profiles] = await Promise.all([api<PedidoDetalhe | null>(`/pedidos/${Number(id)}`), api<Profile[]>("/profiles")]);
-        // Só mostramos pedidos do próprio usuário
-        if (!p || p.usuarioId !== user.id) return setState("notfound");
+        // O backend responde 404 para pedido inexistente ou de outra conta
+        const [p, perfil] = await Promise.all([
+          api<PedidoDetalhe>(`/pedidos/${Number(id)}`, { auth: true }),
+          api<Profile | null>("/profiles/me", { auth: true }),
+        ]);
         setPedido(p);
-        setEndereco(profiles.find((x) => x.usuarioId === user.id)?.endereco ?? null);
+        setEndereco(perfil?.endereco ?? null);
         setState("ok");
       } catch (e) {
+        if (e instanceof ApiError && (e.status === 404 || e.status === 400)) return setState("notfound");
         setErro(errorMessage(e));
         setState("error");
       }
@@ -50,12 +53,9 @@ export default function PedidoDetalhePage() {
     if (!pedido) return;
     setCanceling(true);
     try {
-      const updated = await api<Pedido>(`/pedidos/${pedido.id}`, {
-        method: "PUT",
-        auth: true,
-        body: { usuarioId: pedido.usuarioId, valorTotal: pedido.valorTotal, status: "CANCELADO" },
-      });
-      setPedido({ ...pedido, status: updated.status });
+      // O backend devolve os itens ao estoque na mesma transação
+      const updated = await api<PedidoDetalhe>(`/pedidos/${pedido.id}/cancelar`, { method: "PATCH", auth: true });
+      setPedido(updated);
       toast(`Pedido #${pedido.id} cancelado.`);
       setConfirmCancel(false);
     } catch (e) {

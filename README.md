@@ -1,60 +1,71 @@
-# Vitrine — frontend do e-commerce
+# Vitrine — Frontend
 
-Frontend em **Next.js 16** (App Router, Cache Components) + **Tailwind CSS v4**, integrado ao backend NestJS do repositório `trabalho-backend`.
+Interface web do **Vitrine**, um marketplace acadêmico de lojas independentes: catálogo, páginas de produto e de loja, sacola, checkout, área do cliente (perfil e pedidos) e painel do vendedor (lojas, produtos e fotos).
 
-## Como rodar
+Feito com **Next.js 16** (App Router, Cache Components), **React 19**, **TypeScript** e **Tailwind CSS v4**, integrado ao backend NestJS [E-commerce-Backend](https://github.com/augustospanholo22/E-commerce-Backend).
+
+## Pré-requisitos
+
+- Node.js 20.19+ ou 22.12+ e npm 10+
+- Backend rodando (veja o README do backend) — por padrão em `http://localhost:3000`
+
+## Instalação e execução
 
 ```bash
-# 1) backend (pasta trabalho-backend) — porta 3000
-npm run start:dev
-
-# 2) frontend (esta pasta) — porta 3001
-npm install          # instala lucide-react e as fontes (Fraunces/Geist)
-npm run dev          # http://localhost:3001
+npm ci                         # instala as versões exatas do package-lock.json
+cp .env.example .env.local     # Windows (PowerShell): copy .env.example .env.local
+npm run dev                    # http://localhost:3001
 ```
 
-A URL da API fica em `.env.local` (modelo em `.env.example`):
+| Variável (`.env.local`) | Padrão | Descrição |
+|---|---|---|
+| `API_URL` | `http://localhost:3000` | URL do backend. Lida **só no servidor** do Next (não é `NEXT_PUBLIC_`), nunca vai para o navegador. |
 
-```
-API_URL=http://localhost:3000
-```
+Nenhum segredo fica no frontend.
+
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Desenvolvimento em `http://localhost:3001` |
+| `npm run build` / `npm run start` | Build de produção / executa o build |
+| `npm run lint` | ESLint (regras do Next + React) |
+| `npx tsc --noEmit` | Verificação de tipos (rode `npx next typegen` antes, na primeira vez) |
 
 ## Como o frontend fala com o backend
 
-O backend **não habilita CORS**, então o navegador nunca chama a porta 3000 diretamente:
-
 | Quem chama | Como | Arquivo |
 |---|---|---|
-| Server Components (páginas públicas) | `fetch(API_URL + "/produtos")` direto no Node | `lib/server-api.ts` |
-| Navegador (login, checkout, painel…) | `fetch("/api/produtos")` → o `rewrites` do Next repassa para `API_URL` | `lib/api.ts`, `next.config.ts` |
+| Server Components (páginas públicas) | `fetch(API_URL + "/produtos")` direto no servidor | `lib/server-api.ts` |
+| Navegador (login, checkout, painel…) | `fetch("/api/...")` → o `rewrites` do Next repassa para `API_URL` | `lib/api.ts`, `next.config.ts` |
 
-### Endpoints usados (todos reais)
+Assim o navegador nunca chama a porta 3000 diretamente (não depende de CORS).
+
+### Endpoints usados
 
 | Tela | Endpoints |
 |---|---|
 | Home, catálogo, lojas | `GET /produtos`, `GET /lojas`, `GET /lojas/:id` |
 | Produto | `GET /produtos/:id`, `GET /lojas/:id` |
 | Cadastro / login | `POST /users`, `POST /auth/login` |
-| Sessão (nome do usuário) | `GET /users/:id` — o id vem do campo `sub` do JWT, pois não existe `/me` |
-| Perfil | `PUT /users/:id`, `GET /profiles`, `POST /profiles`, `PUT /profiles/:id` |
-| Checkout | `GET /produtos` (confere preço/estoque), `POST /pedidos`, `POST /itens-pedido` |
-| Pedidos | `GET /pedidos` (filtrado pelo usuário), `GET /pedidos/:id`, `PUT /pedidos/:id` (cancelar) |
-| Painel do vendedor | `POST/PUT/DELETE /lojas`, `POST/PUT/DELETE /produtos`, `GET /itens-pedido` (vendas) |
+| Sessão | `GET /users/me` |
+| Minha conta | `PUT /users/:id` (trocar e-mail/senha exige a senha atual), `GET/PUT /profiles/me` |
+| Checkout | `GET /produtos` (confere preço/estoque), `PUT /profiles/me`, `POST /pedidos` `{ itens: [{ produtoId, quantidade }] }` |
+| Pedidos | `GET /pedidos`, `GET /pedidos/:id`, `PATCH /pedidos/:id/cancelar` |
+| Painel do vendedor | `POST/PUT/DELETE /lojas`, `POST/PUT/DELETE /produtos`, rotas de imagens, `GET /itens-pedido` (vendas) |
 
-### Autenticação JWT
+O total do pedido, os preços e o estoque são calculados e validados **pelo backend**; o frontend envia apenas produtos e quantidades.
 
-- O token de `POST /auth/login` é salvo no `localStorage` e enviado como `Authorization: Bearer <token>` nas rotas protegidas.
-- O token expira em **1h** (configuração do backend): o frontend faz logout automático na expiração ou ao receber um `401`.
-- `context/auth.tsx` lê o token com `useSyncExternalStore` (fica sincronizado entre abas).
+### Autenticação
 
-## Limitações do backend (tratadas no frontend, sem alterar o backend)
+- O token de `POST /auth/login` é guardado no `localStorage` e enviado como `Authorization: Bearer <token>`.
+- Ao expirar (padrão 1h) ou ao receber `401`, a sessão é encerrada e o usuário é avisado.
+- Páginas como Conta, Checkout e Painel redirecionam para o login — mas **quem garante a segurança é o backend**, que valida o token e o dono de cada recurso em todas as rotas.
 
-1. **Sem CORS** → proxy via `rewrites`.
-2. **Sem `/me`** → id do usuário lido do JWT.
-3. **`GET /pedidos` e `GET /profiles` retornam dados de todos os usuários** → o frontend filtra pelo usuário logado. ⚠️ Isso é uma falha de segurança que deve ser corrigida no backend (filtrar pelo `request.user.sub`).
-4. **Checkout não é transacional e não baixa estoque** → o pedido é criado e depois cada item; o status fica `PENDENTE`. Nenhum pagamento é simulado.
-5. **Produto não tem imagem nem categoria** → cada produto recebe uma capa ilustrada gerada em SVG a partir do id e do nome (`components/product/product-art.tsx`); as lojas funcionam como "coleções".
-6. **E-mail duplicado e exclusões com chave estrangeira retornam 500** → mensagens amigáveis no cadastro e no painel.
+### Segurança no frontend
+
+- Sem `dangerouslySetInnerHTML`, sem segredos e sem variáveis `NEXT_PUBLIC_`.
+- Cabeçalhos `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` e `Permissions-Policy` (`next.config.ts`).
+- Mensagens de erro mostram apenas o texto retornado pela API (sem stack traces).
+- **Limitação:** o JWT no `localStorage` pode ser lido por um script malicioso caso exista uma falha de XSS. A evolução recomendada é usar cookie `HttpOnly` (exige mudança no backend).
 
 ## Estrutura
 

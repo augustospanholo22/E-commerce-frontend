@@ -17,16 +17,18 @@ type Options = {
   /** Objeto (enviado como JSON) ou FormData (enviado como multipart/form-data) */
   body?: unknown;
   auth?: boolean;
+  /** Token explícito (ex.: logo após o login, antes de salvá-lo) */
+  token?: string;
 };
 
-export async function api<T>(path: string, { method = "GET", body, auth = false }: Options = {}): Promise<T> {
+export async function api<T>(path: string, { method = "GET", body, auth = false, token: explicitToken }: Options = {}): Promise<T> {
   const headers: Record<string, string> = {};
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   // Em multipart NÃO definimos Content-Type: o navegador gera o cabeçalho com o "boundary".
   if (body !== undefined && !isForm) headers["Content-Type"] = "application/json";
 
-  if (auth) {
-    const token = localStorage.getItem(TOKEN_KEY);
+  if (auth || explicitToken) {
+    const token = explicitToken ?? localStorage.getItem(TOKEN_KEY);
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 

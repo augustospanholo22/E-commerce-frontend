@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, TOKEN_KEY, UNAUTHORIZED_EVENT } from "@/lib/api";
 import { decodeJwt } from "@/lib/jwt";
+import { ApiError } from "@/lib/errors";
 import { useIsClient } from "@/lib/use-is-client";
 import type { CreateUsuarioDto, LoginResponse, Usuario } from "@/lib/types";
 
@@ -71,9 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (reason === "expired") setExpiredNotice(true);
   }, []);
 
-  const fetchUser = useCallback(async (id: number) => {
-    const u = await api<Usuario | null>(`/users/${id}`);
-    if (u) setProfile(u);
+  /** GET /users/me — rota protegida: o token pode ser passado explicitamente logo após o login */
+  const fetchUser = useCallback(async (tk?: string) => {
+    const u = await api<Usuario>("/users/me", { auth: true, token: tk });
+    setProfile(u);
     return u;
   }, []);
 
@@ -81,13 +83,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token || !payload) return;
     let active = true;
-    api<Usuario | null>(`/users/${payload.sub}`)
+    api<Usuario>("/users/me", { auth: true })
       .then((u) => {
-        if (!active) return;
-        if (u) setProfile(u);
-        else logout(); // usuário foi removido do banco
+        if (active) setProfile(u);
       })
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        // 404 = usuário removido do banco; 401 já encerra a sessão via evento
+        if (active && e instanceof ApiError && e.status === 404) logout();
+      });
     return () => {
       active = false;
     };
@@ -109,8 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, senha: string) => {
     const { access_token } = await api<LoginResponse>("/auth/login", { method: "POST", body: { email, senha } });
-    const p = decodeJwt(access_token);
-    if (p) await fetchUser(p.sub).catch(() => undefined);
+    await fetchUser(access_token).catch(() => undefined);
     writeToken(access_token);
     setExpiredNotice(false);
   }, [fetchUser]);
@@ -122,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const refreshUser = useCallback(async () => {
-    if (payload) await fetchUser(payload.sub);
+    if (payload) await fetchUser();
   }, [payload, fetchUser]);
 
   const user = useMemo<Usuario | null>(() => {

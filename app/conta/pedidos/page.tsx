@@ -7,7 +7,7 @@ import { useAuth } from "@/context/auth";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { formatDate, formatPrice } from "@/lib/format";
-import type { Pedido, PedidoDetalhe } from "@/lib/types";
+import type { PedidoDetalhe } from "@/lib/types";
 import { LinkButton, Button } from "@/components/ui/button";
 import { Skeleton, StatePanel } from "@/components/ui/states";
 import { ProductArt } from "@/components/product/product-art";
@@ -24,12 +24,8 @@ export default function PedidosPage() {
     if (!user) return;
     (async () => {
       try {
-        // O backend lista todos os pedidos; filtramos os do usuário logado.
-        const all = await api<Pedido[]>("/pedidos");
-        const mine = all.filter((p) => p.usuarioId === user.id).sort((a, b) => b.id - a.id);
-        // Detalhe de cada pedido traz os itens com o produto
-        const detalhes = await Promise.all(mine.map((p) => api<PedidoDetalhe>(`/pedidos/${p.id}`)));
-        setPedidos(detalhes.filter(Boolean));
+        // GET /pedidos (com login) já devolve só os pedidos do usuário, com itens e produtos
+        setPedidos(await api<PedidoDetalhe[]>("/pedidos", { auth: true }));
       } catch (e) {
         setErro(errorMessage(e));
       }

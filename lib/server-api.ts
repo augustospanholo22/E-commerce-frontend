@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { parseNestError } from "./errors";
+import { ApiError, parseNestError } from "./errors";
 import type { Loja, LojaComProdutos, Produto } from "./types";
 
 /**
@@ -17,9 +17,18 @@ async function serverGet<T>(path: string): Promise<T> {
   return body as T;
 }
 
+/** A API responde 404 para registro inexistente → tratamos como null (página "não encontrado"). */
+async function orNull<T>(p: Promise<T>): Promise<T | null> {
+  try {
+    return await p;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 // cache() do React evita buscar o mesmo recurso duas vezes na mesma renderização
 export const getProdutos = cache(() => serverGet<Produto[]>("/produtos"));
-/** O backend responde 200 com corpo vazio quando o id não existe → null */
-export const getProduto = cache((id: number) => serverGet<Produto | null>(`/produtos/${id}`));
+export const getProduto = cache((id: number) => orNull(serverGet<Produto>(`/produtos/${id}`)));
 export const getLojas = cache(() => serverGet<Loja[]>("/lojas"));
-export const getLoja = cache((id: number) => serverGet<LojaComProdutos | null>(`/lojas/${id}`));
+export const getLoja = cache((id: number) => orNull(serverGet<LojaComProdutos>(`/lojas/${id}`)));
