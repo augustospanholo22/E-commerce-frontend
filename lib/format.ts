@@ -27,6 +27,7 @@ export function statusInfo(status: string): { label: string; tone: "outline" | "
 
 export function stockInfo(estoque: number) {
   if (estoque <= 0) return { label: "Esgotado", tone: "danger" as const };
+  if (estoque === 1) return { label: "Última unidade", tone: "outline" as const };
   if (estoque <= 3) return { label: `Últimas ${estoque} unidades`, tone: "outline" as const };
   return { label: `${estoque} em estoque`, tone: "brand" as const };
 }
